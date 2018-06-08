@@ -10,7 +10,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <RootNamespace>
     </RootNamespace>
-    <ProjectGuid>{5CAC3CBC-610E-DAFD-EA37-5FDD4B72665C}</ProjectGuid>
+    <ProjectGuid>{08F158E8-53D7-E2DD-4B90-03B7B7D764B5}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <AssemblyName>Assembly-CSharp</AssemblyName>
@@ -70,10 +70,10 @@
     <Compile Include="Assets\Scripts\WelcomeScreen\FadeIn.cs" />
     <Compile Include="Assets\Scripts\WelcomeScreen\WelcomeLogoEffect.cs" />
     <Reference Include="UnityEditor.StandardEvents">
-      <HintPath>C:/Users/Phukiengiasock.com/Desktop/TienLenMienNamUnity/TienLenMienNamUnity/Library/ScriptAssemblies/UnityEditor.StandardEvents.dll</HintPath>
+      <HintPath>C:/GitHub/TLMN/TLMN/Library/ScriptAssemblies/UnityEditor.StandardEvents.dll</HintPath>
     </Reference>
     <Reference Include="Unity.PackageManagerUI.Editor">
-      <HintPath>C:/Users/Phukiengiasock.com/Desktop/TienLenMienNamUnity/TienLenMienNamUnity/Library/ScriptAssemblies/Unity.PackageManagerUI.Editor.dll</HintPath>
+      <HintPath>C:/GitHub/TLMN/TLMN/Library/ScriptAssemblies/Unity.PackageManagerUI.Editor.dll</HintPath>
     </Reference>
     <Reference Include="UnityEngine.AIModule">
       <HintPath>C:/Program Files/Unity/Editor/Data/Managed/UnityEngine/UnityEngine.AIModule.dll</HintPath>
