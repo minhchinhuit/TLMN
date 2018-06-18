@@ -9,6 +9,7 @@ using Sfs2X.Util;
 using System;
 using Sfs2X.Requests;
 using Facebook.Unity;
+using Sfs2X.Entities.Data;
 
 public class LoginScreenHandler : MonoBehaviour
 {
@@ -46,8 +47,20 @@ public class LoginScreenHandler : MonoBehaviour
     //----------------------------------------------------------
 
     private SmartFox sfs;
-    private String userName;
-    private String userPass;
+    private String userNameFB;
+    private String userEmailFB;
+    private LOGIN task;
+    private String CMD_SUBMIT = "$SignUp.Submit";
+
+    enum LOGIN
+    {
+        CASUAL,
+        FACEBOOK,
+        DOREGISTERFBINFO,
+        REGISTERED
+    }
+
+    public Dictionary<string, object> FBUserDetails { get; private set; }
 
     // Use this for initialization
     void Start()
@@ -67,7 +80,7 @@ public class LoginScreenHandler : MonoBehaviour
 		if (!Security.PrefetchSocketPolicy(Host, TcpPort, 500)) {
 			Debug.LogError("Security Exception. Policy file loading failed!");
 		}
-        #endif
+#endif
 
         // Enable interface
         enableLoginUI(true);
@@ -83,8 +96,6 @@ public class LoginScreenHandler : MonoBehaviour
             // Already initialized, signal an app activation App Event
             FB.ActivateApp();
         }
-
-
     }
 
     private void InitCallback()
@@ -143,6 +154,7 @@ public class LoginScreenHandler : MonoBehaviour
 
         // Enable interface
         enableLoginUI(true);
+
     }
 
     //----------------------------------------------------------
@@ -158,9 +170,19 @@ public class LoginScreenHandler : MonoBehaviour
 
             Debug.Log("SFS2X API version: " + sfs.Version);
             Debug.Log("Connection mode is: " + sfs.ConnectionMode);
+            Debug.Log(task);
+            // Normal Login
+            if (task == LOGIN.CASUAL)
+                sfs.Send(new Sfs2X.Requests.LoginRequest(nameInput.text, passInput.text, Zone));
 
-            // Login
-            sfs.Send(new Sfs2X.Requests.LoginRequest(nameInput.text, passInput.text, Zone));
+            // Facebook Login at first time, we need to register first
+            if (task == LOGIN.FACEBOOK || task == LOGIN.REGISTERED)
+                sfs.Send(new LoginRequest(FBUserDetails["username"].ToString(), "Passc0de", Zone));
+
+            // Register the facebook information to database
+            if (task == LOGIN.DOREGISTERFBINFO)
+                sfs.Send(new LoginRequest(""));
+
         }
         else
         {
@@ -194,27 +216,59 @@ public class LoginScreenHandler : MonoBehaviour
 
         try
         {
-            
+
             if (evt.Params.Contains("success") && !(bool)evt.Params["success"])
             {
                 string loginErrorMessage = (string)evt.Params["errorMessage"];
                 Debug.Log("Login error: " + loginErrorMessage);
+
             }
             else
             {
                 Debug.Log("Logged in successfully");
 
-                // Startup up UDP
-                sfs.InitUDP(Host, UdpPort);
+                // Register fb infor
+                if (task == LOGIN.DOREGISTERFBINFO)
+                {
+                    DoRegisterFBInfo();
+                }
 
-                // Load Waiting Room
-                SceneManager.LoadScene(3);
+                // Startup up UDP
+                //sfs.InitUDP(Host, UdpPort);
+
+                if (task == LOGIN.CASUAL)
+                {
+                    GameBoard.UserName = nameInput.text;
+                    // Load Waiting Room
+                    SceneManager.LoadScene(3);
+                }
+
+                if (task == LOGIN.FACEBOOK)
+                {
+                    GameBoard.UserName = FBUserDetails["username"].ToString();
+                    // Load Waiting Room
+                    SceneManager.LoadScene(3);
+                }
+
             }
         }
         catch (Exception ex)
         {
             Debug.Log("Exception handling login request: " + ex.Message + " " + ex.StackTrace);
         }
+    }
+
+    private void DoRegisterFBInfo()
+    {
+        SFSObject sfso = new SFSObject();
+        sfso.PutUtfString("username", FBUserDetails["username"].ToString());
+        sfso.PutUtfString("password", "Passc0de");
+        sfso.PutUtfString("email", FBUserDetails["email"].ToString());
+        sfso.PutUtfString("country", "Viet Nam");
+        sfso.PutInt("age", 25);
+        CMD_SUBMIT = "$SignUp.Submit";
+        Debug.Log(CMD_SUBMIT);
+        sfs.Send(new ExtensionRequest(CMD_SUBMIT, sfso));
     }
 
     private void OnLoginError(BaseEvent evt)
@@ -227,7 +281,12 @@ public class LoginScreenHandler : MonoBehaviour
 
         // Show error message
         errorText.text = "Login failed: " + (string)evt.Params["errorMessage"];
-              
+        if (task == LOGIN.FACEBOOK)
+        {
+            task = LOGIN.DOREGISTERFBINFO;
+            Login();
+        }
+
     }
 
     private void OnUdpInit(BaseEvent evt)
@@ -253,6 +312,29 @@ public class LoginScreenHandler : MonoBehaviour
 
     public void LoginButtonClick()
     {
+        task = LOGIN.CASUAL;
+        Login();
+    }
+
+    private void SubscribeEvents()
+    {
+        sfs.AddEventListener(SFSEvent.CONNECTION, OnConnection);
+        sfs.AddEventListener(SFSEvent.CONNECTION_LOST, OnConnectionLost);
+        sfs.AddEventListener(SFSEvent.LOGIN, OnLogin);
+        sfs.AddEventListener(SFSEvent.LOGIN_ERROR, OnLoginError);
+        sfs.AddEventListener(SFSEvent.UDP_INIT, OnUdpInit);
+        sfs.AddEventListener(SFSEvent.EXTENSION_RESPONSE, OnExtensionResponse);
+    }
+
+    void OnApplicationQuit()
+    {
+        Debug.Log("Application close in " + Time.time);
+        SmartFoxConnection.Disconnect();
+        Debug.Log("Application Quit");
+    }
+
+    private void Login()
+    {
         enableLoginUI(false);
 
         // Set connection parameters
@@ -268,15 +350,37 @@ public class LoginScreenHandler : MonoBehaviour
 
         // Set ThreadSafeMode explicitly, or Windows Store builds will get a wrong default value (false)
         sfs.ThreadSafeMode = true;
-
-        sfs.AddEventListener(SFSEvent.CONNECTION, OnConnection);
-        sfs.AddEventListener(SFSEvent.CONNECTION_LOST, OnConnectionLost);
-        sfs.AddEventListener(SFSEvent.LOGIN, OnLogin);
-        sfs.AddEventListener(SFSEvent.LOGIN_ERROR, OnLoginError);
-        sfs.AddEventListener(SFSEvent.UDP_INIT, OnUdpInit);
+        SubscribeEvents();
 
         // Connect to SFS2X
         sfs.Connect(cfg);
+    }
+
+    private void OnExtensionResponse(BaseEvent evt)
+    {
+        String cmd = (String)evt.Params["cmd"];
+        ISFSObject sfso = (ISFSObject)evt.Params["params"];
+        Debug.Log(sfso);
+        Debug.Log(cmd);
+        if (cmd == CMD_SUBMIT)
+        {
+
+            if (sfso.ContainsKey("success"))
+            {
+                Debug.Log("Success, thanks for registering");
+                //SceneManager.LoadScene(3);
+                //sfs.Send(new LogoutRequest());
+                SmartFoxConnection.Disconnect();
+                reset();
+
+                // Login with registered account
+                task = LOGIN.REGISTERED;
+                Login();
+
+            }
+            else
+                Debug.Log("SignUp Error:" + (String)evt.Params["errorMessage"]);
+        }
     }
 
     public void RegisterButtonClick()
@@ -287,8 +391,8 @@ public class LoginScreenHandler : MonoBehaviour
 
     public void FBLoginClick()
     {
-        var perms = new List<string>() { "public_profile", "email" };
-        FB.LogInWithReadPermissions(perms, AuthCallback);
+        // Authentication with facebook account
+        FBAuth();
     }
 
     private void AuthCallback(ILoginResult result)
@@ -298,17 +402,86 @@ public class LoginScreenHandler : MonoBehaviour
             // AccessToken class will have session details
             var aToken = Facebook.Unity.AccessToken.CurrentAccessToken;
             // Print current access token's User ID
-            Debug.Log(aToken.UserId);
+            Debug.Log("UserId: " + aToken.UserId);
             // Print current access token's granted permissions
             foreach (string perm in aToken.Permissions)
             {
-                Debug.Log(perm);
+                Debug.Log("Permission: " + perm);
             }
+            StartCoroutine(FetchFBProfile());
+            //FetchFBProfile();
         }
         else
         {
             Debug.Log("User cancelled login");
         }
+    }
+
+    private void FBAuth()
+    {
+        if (FB.IsInitialized)
+        {
+            List<string> perms = new List<string>();
+            perms.Add("public_profile");
+            perms.Add("email");
+            perms.Add("user_location");
+            perms.Add("user_friends");
+            perms.Add("user_gender");
+            FB.LogInWithReadPermissions(perms, AuthCallback);
+        }
+    }
+
+    private IEnumerator FetchFBProfile()
+    {
+        FB.API("/me?fields=name,email,gender,location", HttpMethod.GET, FetchProfileCallback, new Dictionary<string, string>() { });
+        FB.API("/me/picture?redirect=false", HttpMethod.GET, ProfilePhotoCallback);
+        yield return new WaitForSeconds(5);
+        StartCoroutine(FBLogin());
+        //yield return null;     
+    }
+
+    // Login with details got from fb
+    private IEnumerator FBLogin()
+    {
+        task = LOGIN.FACEBOOK;
+        Login();
+        yield return null;
+    }
+
+    private void FetchProfileCallback(IGraphResult result)
+    {
+
+        Debug.Log(result.RawResult.ToString());
+
+        FBUserDetails = (Dictionary<string, object>)result.ResultDictionary;
+        //StartCoroutine(FetchFBProfilePicture());
+
+        Debug.Log("Profile: name: " + FBUserDetails["name"]);
+        Debug.Log("Profile: id: " + FBUserDetails["id"]);
+        Debug.Log("Profile: email: " + FBUserDetails["email"]);
+
+        FBUserDetails.Add("username", "fb" + FBUserDetails["id"]);
+
+    }
+
+    private void ProfilePhotoCallback(IGraphResult result)
+    {
+        if (String.IsNullOrEmpty(result.Error) && !result.Cancelled)
+        { //if there isn't an error
+            IDictionary data = result.ResultDictionary["data"] as IDictionary; //create a new data dictionary
+            string photoURL = data["url"] as String; //add a URL field to the dictionary
+            if (FBUserDetails != null)
+                FBUserDetails.Add("avatar", photoURL);
+
+            //StartCoroutine(fetchProfilePic(photoURL)); //Call the coroutine to download the photo
+        }
+    }
+
+    private IEnumerator fetchProfilePic(string url)
+    {
+        WWW www = new WWW(url); //use the photo url to get the photo from the web
+        yield return www; //wait until it has downloaded
+        //this.profilePic = www.texture; //set your profilePic Image Component's sprite to the photo
     }
 }
 

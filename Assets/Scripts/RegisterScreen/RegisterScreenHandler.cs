@@ -153,7 +153,7 @@ public class RegisterScreenHandler : MonoBehaviour
                 Debug.Log("Logged in successfully");
 
                 // Startup up UDP
-                sfs.InitUDP(Host, UdpPort);
+                //sfs.InitUDP(Host, UdpPort);
 
                 // Resgister
                 SendRegister();
@@ -190,6 +190,7 @@ public class RegisterScreenHandler : MonoBehaviour
 
     private void OnExtensionResponse(BaseEvent evt)
     {
+        Debug.Log("EXT Response");
         String cmd = (String)evt.Params["cmd"];
         ISFSObject sfso = (ISFSObject)evt.Params["params"];
         Debug.Log(sfso);

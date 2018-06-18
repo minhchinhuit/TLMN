@@ -1,4 +1,8 @@
-﻿using System.Collections;
+﻿using Sfs2X;
+using Sfs2X.Core;
+using Sfs2X.Requests;
+using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -44,6 +48,25 @@ public class GameModeControler : MonoBehaviour {
     float obj_NhatAnTatPosY, obj_TienLenTruyenThongPosY, obj_DemLaPosY;
     bool isup = true;
 
+    // Smartfox Instance
+    SmartFox sfs;
+
+    void Awake()
+    {
+        Application.runInBackground = true;
+        
+        // Assign to current smartfox connection
+        if (SmartFoxConnection.IsInitialized)
+        {
+            sfs = SmartFoxConnection.Connection;
+        }
+
+        SubscribeEvent();
+
+        // Send public message to room
+        SendPublicMessage("Hello, I'm " + GameBoard.UserName);
+    }
+
     // Use this for initialization
     void Start () {
         obj_NhatAnTat = GameObject.Find("NhatAnTat");
@@ -65,9 +88,13 @@ public class GameModeControler : MonoBehaviour {
             DropdownValueChanged(m_Dropdown);
         });
 
+        StartCoroutine("MoveGameMode");     
 
-        StartCoroutine("MoveGameMode");
+    }
 
+    private void SendPublicMessage(string msg)
+    {
+        sfs.Send(new PublicMessageRequest(msg));
     }
 
     // Update is called once per frame
@@ -105,6 +132,13 @@ public class GameModeControler : MonoBehaviour {
             img_DemLa.sprite = spt_DemLa_Deactive;
             //UpDownEffect(obj_DemLa, obj_DemLaPosY, 0f);
         }
+
+        // Proccess Smartfox events
+        if (sfs != null)
+            sfs.ProcessEvents();
+
+        // Check if Smartfox session ends
+        
 
     }
 
@@ -181,5 +215,20 @@ public class GameModeControler : MonoBehaviour {
         Deactiveall();
 
         clickedImage.tag = "Active";
+    }
+
+    private void SubscribeEvent()
+    {
+        sfs.AddEventListener(SFSEvent.PUBLIC_MESSAGE, OnPublicMessage);
+    }
+
+    private void OnPublicMessage(BaseEvent evt)
+    {
+        Debug.Log("Message Received: " + (string)evt.Params["message"]);
+    }
+
+    void OnApplicationQuit()
+    {
+        SmartFoxConnection.Disconnect();
     }
 }

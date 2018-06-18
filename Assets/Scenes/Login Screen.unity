@@ -1536,7 +1536,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 1909975897}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ca5cf10e0330d7d4387f7db1b1405ce1, type: 3}
+  m_Script: {fileID: 11500000, guid: f36c334831935e247bc87bab1013e5ec, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   Host: 127.0.0.1
@@ -1546,7 +1546,7 @@ MonoBehaviour:
   nameInput: {fileID: 1260878052}
   passInput: {fileID: 1544372628}
   registerButton: {fileID: 275154762}
-  loginButton: {fileID: 1944102397}
+  loginButton: {fileID: 259088986}
   fbLoginButton: {fileID: 1944102397}
   errorText: {fileID: 786270579}
 --- !u!4 &1909975899

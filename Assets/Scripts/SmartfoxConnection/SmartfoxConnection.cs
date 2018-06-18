@@ -42,9 +42,20 @@ public class SmartFoxConnection : MonoBehaviour
     // ** Important for Windows users - can cause crashes otherwise
     void OnApplicationQuit()
     {
-        if (sfs.IsConnected)
+        Debug.Log("Quit");
+        Disconnect();
+    }
+
+    public static void Disconnect()
+    {
+        if (sfs != null)
         {
-            sfs.Disconnect();
+            sfs.RemoveAllEventListeners();
+            if (sfs.IsConnected)
+            {
+                sfs.Disconnect();
+            }
         }
+        
     }
 }
